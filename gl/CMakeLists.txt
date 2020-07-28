@@ -1,0 +1,55 @@
+cmake_minimum_required(VERSION 2.8.11)
+
+project(MRHead)
+set(CMAKE_CXX_STANDARD 11)
+if(NOT DEFINED CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE "Release")
+endif()
+set(CMAKE_CXX_FLAGS "-O3")
+
+include_directories(./)
+
+if (POLICY CMP0072)
+  set(OpenGL_GL_PREFERENCE LEGACY)
+endif()
+
+find_package(OpenGL)
+find_package(GLUT)
+set(DEPS ${OPENGL_LIBRARIES})
+list(APPEND DEPS ${GLUT_LIBRARY})
+
+find_package(GLEW)
+if (GLEW_FOUND)
+  include_directories(${GLEW_INCLUDE_DIRS})
+  list(APPEND DEPS GLEW::GLEW)
+endif()
+
+find_package(glfw3)
+if (glfw3_FOUND)
+  list(APPEND DEPS glfw)
+endif()
+
+find_package(OpenCV)
+if(OPENCV_FOUND)
+  list(APPEND DEPS ${OpenCV_LIBS})
+endif()
+
+find_package(assimp)
+if (assimp_FOUND)
+    link_directories(${ASSIMP_LIBRARY_DIRS})
+    include_directories(${ASSIMP_INCLUDE_DIRS})
+    list(APPEND DEPS ${ASSIMP_LIBRARIES})
+endif()
+
+file(GLOB_RECURSE srcs ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
+
+foreach(source ${srcs})
+	get_filename_component(name ${source} NAME_WE)
+	if(NOT name MATCHES "gl3d" OR assimp_FOUND)
+		add_executable(${name} ${source})
+		target_link_libraries(${name}  ${DEPS})
+	endif()
+endforeach(source)
+
+file(COPY shaders DESTINATION ${CMAKE_BINARY_DIR})
+file(COPY cube.obj DESTINATION ${CMAKE_BINARY_DIR})
