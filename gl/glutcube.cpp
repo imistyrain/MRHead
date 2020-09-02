@@ -1,5 +1,7 @@
 #include "shader.h"
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 #define _USE_MATH_DEFINES
 #include "math.h"
 #include "algorithm"
@@ -16,8 +18,9 @@ bool g_bShowCube = true;
 bool g_bShowAxis = true;
 bool g_bShowFrustum =true;
 bool g_bShowGrid = true;
-glm::vec3 g_camaxis;
-float g_angle = 0;
+glm::mat4 g_model;
+glm::mat4 g_view;
+glm::mat4 g_mv;
 
 void reshape(int w,int h){
     g_screen_width = w;
@@ -177,15 +180,26 @@ void renderCube(float size = 0.4){
     glEnd();
 }
 
+void show_matrix(glm::mat4 m){
+    for (int i = 0;i<4;i++){
+        for(int j = 0;j<4;j++){
+            std::cout<<m[j][i]<<" ";
+        }
+        std::cout<<std::endl;
+    }
+}
+
 void display(){
     glClearColor(0.0, 0.0, 0.0, 1.0);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); 
-    glTranslatef(model_pos[0],model_pos[1],model_pos[2]);
-    for (int i = 0; i < 3; i++){
-        model_pos[i] = 0;
-    }
-    glRotatef(g_angle, g_camaxis[0],g_camaxis[1],g_camaxis[2]);
-    g_angle = 0;
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    g_mv = g_view * g_model;
+	glLoadMatrixf(glm::value_ptr(g_mv));
+    // std::cout<<"m"<<std::endl;
+    // show_matrix(g_model);
+    // std::cout<<"v"<<std::endl;
+    // show_matrix(g_view);
+    // std::cout<<"mv"<<std::endl;
+    // show_matrix(g_mv);
     if (g_bShowCube)
         renderCube();
     if (g_bShowAxis)
@@ -194,7 +208,6 @@ void display(){
         drawGrid();
     if (g_bShowFrustum)
         drawFrustum();
-
     glutSwapBuffers();
 }
 
@@ -230,8 +243,8 @@ void processNormalKeys(unsigned char key,int x,int y){
             break;
         case 'r':
         case 'R':
-            glLoadIdentity();
-            gluLookAt(cam_pos[0],cam_pos[1],cam_pos[2],0.f,0.f,0.f,0.f,1.f,0.f);
+            g_view = glm::lookAt(glm::vec3(cam_pos[0], cam_pos[1], cam_pos[2]), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+            g_model = glm::mat4(1.0);
             break;
         case 's':
         case 'S':
@@ -248,8 +261,8 @@ void processNormalKeys(unsigned char key,int x,int y){
 }
 
 glm::vec3 computePointOnSphere(double x, double y){
-	glm::vec3 coord = glm::vec3(1.0*x / g_screen_width * 2 - 1.0,
-        1.0*y / g_screen_height * 2 - 1.0, 0);
+	glm::vec3 coord = glm::vec3(2.0*x / g_screen_width - 1.0,
+        2.0*y / g_screen_height - 1.0, 0);
     coord.y = -coord.y;
     float length_squared = coord.x * coord.x + coord.y * coord.y;
     if (length_squared <= 1.0)
@@ -281,15 +294,20 @@ void onMouse(GLint button, GLint state, GLint x, GLint y){
 }
 
 void onMotion(GLint x, GLint y){
-	if (g_bLbutton){
+	if (g_bLbutton){        
         glm::vec3 prevPos = computePointOnSphere(g_lastX, g_lastY);
         glm::vec3 currPos = computePointOnSphere(x, y);
-        g_camaxis = glm::cross(prevPos, currPos);
-        g_angle = acos(std::min(1.0f, glm::dot(prevPos, currPos))) * 2 * 180 / M_PI;
-        g_lastX = x;
-		g_lastY = y;
-		glutPostRedisplay();
+        float d = glm::dot(prevPos, currPos);
+        if (d < 1 - 0.00001){
+            glm::vec3 axis = glm::cross(prevPos, currPos);
+            float angle = std::acos(std::min(1.0f, d)) * 3;
+            axis = glm::inverse(glm::mat3(g_mv)) * axis;
+            g_model = glm::rotate(g_model, angle, axis);
+            glutPostRedisplay();          
+        }
     }
+    g_lastX = x;
+	g_lastY = y;
 }
 
 void initGL(){
@@ -297,18 +315,21 @@ void initGL(){
 		glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE);
 	#endif
     glutInitWindowSize(g_screen_width, g_screen_height);
-    glutCreateWindow("glcube");
-    GLenum err = glewInit();
-    if (GLEW_OK != err) {
-        std::cout << "Error initializing GLEW: " << glewGetErrorString(err) << std::endl;
-    }
+    glutCreateWindow("glutcube");
+    #if _WIN32
+        GLenum err = glewInit();
+        if (GLEW_OK != err) {
+            std::cout << "Error initializing GLEW: " << glewGetErrorString(err) << std::endl;
+        }
+    #endif
     glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE);
     glEnable(GL_LINE_SMOOTH);
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_BLEND);
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
-    gluLookAt(cam_pos[0],cam_pos[1],cam_pos[2],0.f,0.f,0.f,0.f,1.f,0.f);
+    g_view = glm::lookAt(glm::vec3(cam_pos[0], cam_pos[1], cam_pos[2]), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    g_model = glm::mat4(1.0);
     glutDisplayFunc(display);
     glutReshapeFunc(reshape);
     glutSpecialFunc(processSpecialKey);

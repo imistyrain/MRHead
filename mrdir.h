@@ -3,7 +3,7 @@
 #include "string"
 #include "iostream"
 #include "vector"
-
+#include "mrutil.h"
 //////////////////////////////////////////////////////////////////////////
 ///	
 ///	EXISTS 
@@ -156,52 +156,54 @@ static std::vector<std::string> getAllSubdirs(std::string strDir)
 //////////////////////////////////////////////////////////////////////////
 static std::vector<std::string> getAllFilesinDir(std::string strDir, std::string ext = "*.*")
 {
-	WIN32_FIND_DATA FindData;
-	HANDLE hError;
-	std::string file2find = strDir + "/" + ext;
 	std::vector<std::string> files;
-	#if _UNICODE
-		wchar_t *p= ANSIToUnicode(file2find.c_str());
-		hError = FindFirstFile(p, &FindData);
-		delete[]p;
-	#else
-		hError = FindFirstFile((LPCTSTR)file2find.c_str(), &FindData);
-	#endif
-	if (hError == INVALID_HANDLE_VALUE)
-	{
-		return files;
-	}
-	else
-	{
-		do
+	std::vector<std::string> items = split(ext, "|");
+	for (int i = 0; i < items.size(); i++) {
+		std::string file2find = strDir + "/" + items[i];
+		WIN32_FIND_DATA FindData;
+		HANDLE hError;
+		#if _UNICODE
+			wchar_t *p = ANSIToUnicode(file2find.c_str());
+			hError = FindFirstFile(p, &FindData);
+			delete[]p;
+		#else
+			hError = FindFirstFile((LPCTSTR)file2find.c_str(), &FindData);
+		#endif
+		if (hError == INVALID_HANDLE_VALUE)
 		{
-			if (lstrcmp(FindData.cFileName, TEXT(".")) == 0 || lstrcmp(FindData.cFileName, TEXT("..")) == 0)
+			continue;
+		}
+		else
+		{
+			do
 			{
-				continue;
-			}
-			else if (FindData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
-			{
-				continue;
-			}
-			else if (!(FindData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
-			{
-	#if _UNICODE
-				char *p = UnicodeToANSI(FindData.cFileName);
-				files.push_back(p);
-				delete[]p;
-	#else
-				files.push_back(FindData.cFileName);
-	#endif
-			}
-		} while (::FindNextFile(hError, &FindData));
+				if (lstrcmp(FindData.cFileName, TEXT(".")) == 0 || lstrcmp(FindData.cFileName, TEXT("..")) == 0)
+				{
+					continue;
+				}
+				else if (FindData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+				{
+					continue;
+				}
+				else if (!(FindData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
+				{
+#if _UNICODE
+					char *p = UnicodeToANSI(FindData.cFileName);
+					files.push_back(p);
+					delete[]p;
+#else
+					files.push_back(FindData.cFileName);
+#endif
+				}
+			} while (::FindNextFile(hError, &FindData));
+		}
+		FindClose(hError);
 	}
-	FindClose(hError);
 	return files;
 }
 #else
 	#include <dirent.h>
 	#include "string.h"
-	#include "mrutil.h"
 	using std::string;
 	
 	static std::vector<std::string> getAllSubdirs(std::string strDir)
@@ -228,14 +230,18 @@ static std::vector<std::string> getAllFilesinDir(std::string strDir, std::string
 	
 	inline bool ends_with(std::string const & value, std::string const & ending)
 	{
-		if (ending.size() > value.size()) return false;
+		if (ending.size() > value.size())
+			return false;
 		return std::equal(ending.rbegin(), ending.rend(), value.rbegin());
 	}
 
 	static std::vector<std::string> getAllFilesinDir(const std::string strDir, std::string ext="*.*")
 	{
-		std::vector<std::string>items = split(ext,".");
-		std::string rext = items[items.size() - 1];
+		std::vector<std::string> items = split(ext,"|");
+		for(int i = 0; i < items.size(); i++){
+			auto si = split(items[i], ".");
+			items[i] = si[si.size()-1];
+		}
 		struct dirent* ent = NULL;
 		DIR *pDir;
 		std::vector<std::string> files;
@@ -245,10 +251,10 @@ static std::vector<std::string> getAllFilesinDir(std::string strDir, std::string
 		pDir = opendir(strDir.c_str());
 		while (NULL != (ent = readdir(pDir))) {  
 			if (ent->d_type == 8) {
-				if (rext == "*"){
-					files.push_back(ent->d_name);
-				} else if (ends_with(ent->d_name,rext)){
-					files.push_back(ent->d_name);
+				for (int i = 0; i < items.size(); i++){
+					if (items[i] == "*" || ends_with(ent->d_name, items[i])){
+						files.push_back(ent->d_name);
+					}
 				}
 			}
 			else {

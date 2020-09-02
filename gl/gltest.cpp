@@ -101,6 +101,9 @@ void display(){
     }
     angle += 1;
     glutSwapBuffers();
+	#if _WIN32
+		glutPostRedisplay();
+	#endif
 }
 
 void on_timer(int val){
@@ -144,10 +147,12 @@ void initGL(){
 	#endif
     glutInitWindowSize(SCR_WIDTH,SCR_HEIGHT);
     glutCreateWindow("gltest");
-    GLenum err = glewInit();
-    if (GLEW_OK != err) {
-        std::cout << "Error initializing GLEW: " << glewGetErrorString(err) << std::endl;
-    }
+    #if _WIN32
+        GLenum err = glewInit();
+        if (GLEW_OK != err) {
+            std::cout << "Error initializing GLEW: " << glewGetErrorString(err) << std::endl;
+        }
+    #endif
     glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE);
     glutDisplayFunc(display);
     glutReshapeFunc(reshape);

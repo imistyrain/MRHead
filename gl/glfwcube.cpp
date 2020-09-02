@@ -1,5 +1,5 @@
 #define _USE_MATH_DEFINES
-#include "math.h"
+#include "cmath"
 #include "algorithm"
 #include "shader.h"
 #include <glm/glm.hpp>
@@ -11,7 +11,7 @@
 int g_screen_width = 400;
 int g_screen_height = 400;
 Shader *shader;
-float cam_pos[3] = { 0,0,1.6f };
+float cam_pos[3] = {0, 0, 1.6f};
 GLint g_lastX = 0;
 GLint g_lastY = 0;
 bool g_bLbutton = false;
@@ -20,10 +20,7 @@ bool g_bShowAxis = true;
 bool g_bShowFrustum = true;
 bool g_bShowGrid = true;
 bool g_bctrl = false;
-glm::vec3 g_camaxis;
-float g_angle = 0;
 float g_scale = 0.4;
-
 float g_fov = 60;
 float g_near = 0.1;
 float g_far = 100;
@@ -37,7 +34,7 @@ void reshape(GLFWwindow* window, int w, int h) {
 	g_screen_height = h;
 	glfwGetFramebufferSize(window, &w, &h);
 	glViewport(0, 0, w, h);
-	g_proj = glm::perspective(glm::radians(g_fov), (float)g_screen_width / (float)g_screen_height, g_near, g_far);
+	g_proj = glm::perspective(glm::radians(g_fov), g_screen_width * 1.0f / g_screen_height, g_near, g_far);
 	glMatrixMode(GL_PROJECTION);
 	glLoadMatrixf(glm::value_ptr(g_proj));
 	glMatrixMode(GL_MODELVIEW);
@@ -227,10 +224,11 @@ void cursor_position_callback(GLFWwindow* window, double x, double y)
 		else {
 			glm::vec3 prevPos = computePointOnSphere(g_lastX, g_lastY);
 			glm::vec3 currPos = computePointOnSphere(x, y);
-			g_camaxis = glm::cross(prevPos, currPos);
-			g_angle = acos(std::min(1.0f, glm::dot(prevPos, currPos))) * 2 * 180 / M_PI;
+			glm::vec3 axis = glm::cross(prevPos, currPos);
+			float angle = std::acos(std::min(1.0f, glm::dot(prevPos, currPos))) * 2;
+			axis = glm::inverse(glm::mat3(g_mv)) * axis;
+			g_model = glm::rotate(g_model, angle, axis);
 		}
-
 	}
 	g_lastX = x;
 	g_lastY = y;
@@ -318,13 +316,13 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 
 int main(int argc, char *argv[]) {
 	glutInit(&argc, argv);
-#if _WIN32
-	glewInit();
-#endif
+	#if _WIN32
+		glewInit();
+	#endif
 	if (!glfwInit()) {
 		return -1;
 	}
-	GLFWwindow *window = glfwCreateWindow(g_screen_width, g_screen_height, "glcube", NULL, NULL);
+	GLFWwindow *window = glfwCreateWindow(g_screen_width, g_screen_height, "glfwcube", NULL, NULL);
 	if (!window){
 		glfwTerminate();
 		return -1;
@@ -339,20 +337,16 @@ int main(int argc, char *argv[]) {
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_BLEND);
 	glMatrixMode(GL_PROJECTION);
-	g_proj = glm::perspective(glm::radians(g_fov), (float)g_screen_width / (float)g_screen_height, g_near, g_far);
+	g_proj = glm::perspective(glm::radians(g_fov), g_screen_width * 1.0f / g_screen_height, g_near, g_far);
 	glLoadMatrixf(glm::value_ptr(g_proj));
 	glMatrixMode(GL_MODELVIEW);
 	g_view = glm::lookAt(glm::vec3(cam_pos[0], cam_pos[1], cam_pos[2]), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-	g_model = glm::translate(glm::mat4(1.0), glm::vec3(0, 0, 0));
+	g_model = glm::mat4(1.0);
 	while (!glfwWindowShouldClose(window)) {
 		glClearColor(0.0, 0.0, 0.0, 1.0);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		if (g_angle != 0) {
-			g_model = glm::rotate(g_model, glm::radians(g_angle), glm::vec3(g_camaxis[0], g_camaxis[1], g_camaxis[2]));
-		}
 		g_mv = g_view * g_model;
 		glLoadMatrixf(glm::value_ptr(g_mv));
-		g_angle = 0;
 		if (g_bShowCube)
 			renderCube(g_scale);
 		if (g_bShowAxis)

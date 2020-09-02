@@ -60,6 +60,56 @@ void orbit(){
         glPopMatrix();
     }
 }
+void update(int value) {
+	if ((angleMoon >= 0 && angleMoon < 180)) {
+		sx -= 0.0003; sy -= 0.0003; sz -= 0.0003;
+	}
+	else {
+		sx += 0.0003; sy += 0.0003; sz += 0.0003;
+	}
+	angleMoon += 2;
+	if (angleMoon > 360) {
+		angleMoon -= 360;
+	}
+	angleEarth += 0.7;
+	if (angleEarth > 360) {
+		angleEarth -= 360;
+	}
+	angleMercury += 2;
+	if (angleMercury > 360) {
+		angleMercury -= 360;
+	}
+	angleVenus += 0.9;
+	if (angleVenus > 360) {
+		angleVenus -= 360;
+	}
+	angleMars += 0.5;
+	if (angleMars > 360) {
+		angleMars -= 360;
+	}
+	angleJupiter += 0.2;
+	if (angleJupiter > 360) {
+		angleJupiter -= 360;
+	}
+	angleSaturn += 0.1;
+	if (angleSaturn > 360) {
+		angleSaturn -= 360;
+	}
+	angleUranus += 0.05;
+	if (angleUranus > 360) {
+		angleUranus -= 360;
+	}
+	angleNeptune += 0.02;
+	if (angleNeptune > 360) {
+		angleNeptune -= 360;
+	}
+	angleAstroid += 0.002;
+	if (angleAstroid > 360) {
+		angleAstroid -= 360;
+	}
+	glutPostRedisplay();
+	glutTimerFunc(20, update, 0);
+}
 
 void draw(){
     glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
@@ -194,46 +244,10 @@ void draw(){
     glPopMatrix();
     glPopMatrix();
     glFlush();
-}
-
-void update(int value){
-    if((angleMoon>=0 && angleMoon<180)){
-        sx-=0.0003;sy-=0.0003;sz-=0.0003;
-    }else{
-        sx+=0.0003;sy+=0.0003;sz+=0.0003;
-    }
-    angleMoon+=2;
-    if(angleMoon>360){
-        angleMoon-=360;}
-    angleEarth+=0.7;
-    if(angleEarth>360){
-        angleEarth-=360;}
-    angleMercury+=2;
-    if(angleMercury>360){
-        angleMercury-=360;}
-    angleVenus+=0.9;
-    if(angleVenus>360){
-        angleVenus-=360;}
-    angleMars+=0.5;
-    if(angleMars>360){
-        angleMars-=360;}
-    angleJupiter+=0.2;
-    if(angleJupiter>360){
-        angleJupiter-=360;}
-    angleSaturn+=0.1;
-    if(angleSaturn>360){
-        angleSaturn-=360;}  
-    angleUranus+=0.05;
-    if(angleUranus>360){
-        angleUranus-=360;}
-    angleNeptune+=0.02;
-    if(angleNeptune>360){
-        angleNeptune-=360;}
-    angleAstroid+=0.002;
-    if(angleAstroid>360){
-        angleAstroid-=360;}
-    glutPostRedisplay();
-    glutTimerFunc(20,update,0);
+	#if _WIN32
+		update(20);
+		glutPostRedisplay();
+	#endif
 }
 
 int main(int argc, char **argv){

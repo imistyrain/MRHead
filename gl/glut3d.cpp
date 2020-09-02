@@ -1,21 +1,20 @@
+#define _USE_MATH_DEFINES
+#include "vector"
 #include "opencv2/opencv.hpp"
 #include "mrgl.h"
 #include "mrutil.h"
-#include "vector"
 #include <assimp/cimport.h>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
+#define USE_GLM 1
+#if USE_GLM
 #include "glm/glm.hpp"
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
-#include <GLFW/glfw3.h>
+glm::vec3 g_camaxis;
+float g_angle = 0;
+#endif
 
 const aiScene* g_scene = NULL;
 GLuint scene_list = 0;
-GLFWwindow *g_window;
-glm::mat4 g_proj;
-glm::mat4 g_model;
-glm::mat4 g_view;
 aiVector3D scene_min, scene_max, scene_center;
 int modes[] = {GL_POINTS,GL_LINE_STRIP,GL_TRIANGLES};
 int mode_index = 2;
@@ -40,6 +39,20 @@ bool g_bflip = false;
 int g_screen_width = 600;
 int g_screen_height = 600;
 
+#define aisgl_min(x,y) (x<y?x:y)
+#define aisgl_max(x,y) (y>x?y:x)
+
+void reshape(int width, int height){
+	const double aspectRatio = (float) width / height, fieldOfView = 60.0;
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+	gluPerspective(fieldOfView, aspectRatio, 1.0, 1000.0);
+	glViewport(0, 0, width, height);
+	glMatrixMode(GL_MODELVIEW);
+	glLoadIdentity();
+	gluLookAt(eye_pos[0],eye_pos[1],eye_pos[2],0.f,0.f,0.f,0.f,1.f,0.f);
+}
+
 void get_bounding_box_for_node (const C_STRUCT aiNode* nd, C_STRUCT aiVector3D* min,C_STRUCT aiVector3D* max,C_STRUCT aiMatrix4x4* trafo){
 	C_STRUCT aiMatrix4x4 prev;
 	unsigned int n = 0, t;
@@ -53,13 +66,13 @@ void get_bounding_box_for_node (const C_STRUCT aiNode* nd, C_STRUCT aiVector3D* 
 			C_STRUCT aiVector3D tmp = mesh->mVertices[t];
 			aiTransformVecByMatrix4(&tmp,trafo);
 
-			min->x = std::min(min->x,tmp.x);
-			min->y = std::min(min->y,tmp.y);
-			min->z = std::min(min->z,tmp.z);
+			min->x = aisgl_min(min->x,tmp.x);
+			min->y = aisgl_min(min->y,tmp.y);
+			min->z = aisgl_min(min->z,tmp.z);
 
-			max->x = std::max(max->x,tmp.x);
-			max->y = std::max(max->y,tmp.y);
-			max->z = std::max(max->z,tmp.z);
+			max->x = aisgl_max(max->x,tmp.x);
+			max->y = aisgl_max(max->y,tmp.y);
+			max->z = aisgl_max(max->z,tmp.z);
 		}
 	}
 
@@ -286,7 +299,7 @@ int LoadGLTextures(const char*modelpath, const aiScene* scene){
 	glGenTextures(static_cast<GLsizei>(numTextures), textureIds);
 	std::map<std::string, GLuint*>::iterator itr = textureIdMap.begin();
 	std::string basepath = getBasePath(modelpath);
-	for (size_t i = 0; i < numTextures; i++){
+	for (size_t i=0; i<numTextures; i++){
 		std::string filename = (*itr).first;  // get filename
 		(*itr).second =  &textureIds[i];	  // save texture id for filename in map
 		itr++;								  // next texture
@@ -310,7 +323,8 @@ int LoadGLTextures(const char*modelpath, const aiScene* scene){
 	return true;
 }
 
-void drawAxis(float scale = 0.6) {
+void draw_axes(){
+	glLineWidth(1.5);
 	glDisable(GL_LIGHTING);
 	glDisable(GL_TEXTURE_2D);
 	glBegin(GL_LINES);
@@ -326,32 +340,32 @@ void drawAxis(float scale = 0.6) {
 	glVertex3f(0.0, 0.0, 0.0);
 	glVertex3f(0.0, 0.0, 0.6);
 	glEnd();
-
+	
 	glBegin(GL_POINTS);
 	glColor3f(1.0, 1.0, 1.0);
-	for (int i = 0; i < 10 * scale; i++) {
-		float axis = i * 1.0 / 10;
-		glVertex3f(axis, 0, 0);
-		glVertex3f(0, axis, 0);
-		glVertex3f(0, 0, axis);
+	for (int i = 0;i<10*(scale/2);i++){
+		float axis = i * 1.0/ 10;
+		glVertex3f(axis,0,0);
+		glVertex3f(0,axis,0);
+		glVertex3f(0,0,axis);
 	}
 	glEnd();
 
 	glPushMatrix();
-	glTranslatef(0.58, 0, 0);
-	glRotatef(90, 0, 1, 0);
-	glutSolidCone(0.01, 0.03, 100, 10);
+	glTranslatef(0.58,0,0);
+	glRotatef(90,0,1,0);
+	glutSolidCone(0.01,0.03,100,10);	
 	glPopMatrix();
 
 	glPushMatrix();
-	glTranslatef(0.0, 0.58, 0);
-	glRotatef(270, 1, 0, 0);
-	glutSolidCone(0.01, 0.03, 100, 10);
+	glTranslatef(0.0,0.58,0);
+	glRotatef(270,1,0,0);
+	glutSolidCone(0.01,0.03,100,10);	
 	glPopMatrix();
 
 	glPushMatrix();
-	glTranslatef(0.0, 0.0, 0.58);
-	glutSolidCone(0.01, 0.03, 100, 10);
+	glTranslatef(0.0,0.0,0.58);
+	glutSolidCone(0.01,0.03,100,10);	
 	glPopMatrix();
 
 	glRasterPos3f(0.62f, 0.0f, 0.0f);
@@ -387,21 +401,35 @@ void show_angles(){
 	glPopMatrix();
 }
 
-int loadasset(const char* path){
-	if (path){
-		g_scene = aiImportFile(path,aiProcessPreset_TargetRealtime_MaxQuality);		
-		if (g_scene) {	
-			if (!LoadGLTextures(path, g_scene)){
-				return -2;
-			}
-			get_bounding_box(&scene_min,&scene_max);
-			scene_center.x = (scene_min.x + scene_max.x) / 2.0f;
-			scene_center.y = (scene_min.y + scene_max.y) / 2.0f;
-			scene_center.z = (scene_min.z + scene_max.z) / 2.0f;
-			return 0;
-		}
+void display(){
+	glClearColor(0.384, 0.384, 0.768, 1.0);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	show_angles();
+	#if USE_GLM
+		glRotatef(g_angle, g_camaxis[0],g_camaxis[1],g_camaxis[2]);
+	#else
+		glLoadIdentity();
+		gluLookAt(eye_pos[0],eye_pos[1],eye_pos[2],0.f,0.f,0.f,0.f,1.f,0.f);
+		glRotatef(angles[1],0.f,1.f,0.f);
+		glRotatef(-angles[0],-1.f,0.f,0.f);
+	#endif
+	glPushMatrix();
+	if (g_bShowAxes){
+		draw_axes();
 	}
-	return -1;
+	glEnable(GL_TEXTURE_2D);
+	float tmp = scene_max.x-scene_min.x;
+	tmp = aisgl_max(scene_max.y - scene_min.y,tmp);
+	tmp = aisgl_max(scene_max.z - scene_min.z,tmp);
+	tmp = scale / tmp;
+	glScalef(tmp, tmp, tmp);
+	glTranslatef(-scene_center.x, -scene_center.y, -scene_center.z);
+
+	glLineWidth(0.5);
+	if (g_bShowModel && scene_list)
+		glCallList(scene_list);
+	glPopMatrix();
+	glutSwapBuffers();
 }
 
 void update_drawlist(){
@@ -412,8 +440,26 @@ void update_drawlist(){
 	glNewList(scene_list, GL_COMPILE);
 	recursive_render(g_scene, g_scene->mRootNode);
 	glEndList();
+	glutPostRedisplay();
 }
 
+int loadasset (const char* path){
+	if (path)
+		g_scene = aiImportFile(path,aiProcessPreset_TargetRealtime_MaxQuality);
+	if (g_scene) {
+		if (!LoadGLTextures(path, g_scene)){
+			return -1;
+		}
+		get_bounding_box(&scene_min,&scene_max);
+		scene_center.x = (scene_min.x + scene_max.x) / 2.0f;
+		scene_center.y = (scene_min.y + scene_max.y) / 2.0f;
+		scene_center.z = (scene_min.z + scene_max.z) / 2.0f;
+		return 0;
+	}
+	return 1;
+}
+
+#if USE_GLM
 glm::vec3 computePointOnSphere(double x, double y){
 	glm::vec3 coord = glm::vec3(1.0*x / g_screen_width * 2 - 1.0,
         1.0*y / g_screen_height * 2 - 1.0, 0);
@@ -425,91 +471,124 @@ glm::vec3 computePointOnSphere(double x, double y){
         coord = glm::normalize(coord);
     return coord;
 }
+#endif
 
-void mouse_button_callback(GLFWwindow *win, int button, int action, int mods){
-    switch (button){
-        case GLFW_MOUSE_BUTTON_LEFT:
-            if (action == GLFW_PRESS){
-				g_bLbutton = true;
-			} else if (action == GLFW_RELEASE){
-				g_bLbutton = false;
+void onMouse(GLint button, GLint state, GLint x, GLint y){
+	switch (button){
+		case GLUT_LEFT_BUTTON:
+			switch (state){
+				case GLUT_DOWN:
+					g_lastX = x;
+					g_lastY = y;
+					g_bLbutton = true;
+					break;
+				case GLUT_UP:
+					g_lastX = x;
+					g_lastY = y;
+					g_bLbutton = false;
+					break;
 			}
+		break;
+		default:
 			break;
 	}
+	g_bAutoRotating = false;
 }
 
-void cursor_position_callback(GLFWwindow* window, double x, double y){
+void onMotion(GLint x, GLint y){
 	if (g_bLbutton){
-		glm::vec3 prevPos = computePointOnSphere(g_lastX, g_lastY);
-		glm::vec3 currPos = computePointOnSphere(x, y);
-		glm::vec3 axis  = glm::cross(prevPos, currPos);
-		float angle = acos(std::min(1.0f, glm::dot(prevPos, currPos)))*3;
-		axis = glm::inverse(glm::mat3(g_view*g_model)) * axis;
-        g_model = glm::rotate(g_model,angle,axis);
+		#if USE_GLM
+			glm::vec3 prevPos = computePointOnSphere(g_lastX, g_lastY);
+			glm::vec3 currPos = computePointOnSphere(x, y);
+			g_camaxis = glm::cross(prevPos, currPos);
+			g_angle = acos(std::min(1.0f, glm::dot(prevPos, currPos))) * 2 * 180 / M_PI;
+		#else
+			angles[1] += (x - g_lastX);
+			angles[0] += (y - g_lastY);
+			for (int i = 0; i < 3; i++){
+				angles[i] += int(abs(angles[i])/360)*360;
+				angles[i] = angles[i] - int(angles[i]/360) * 360;	
+			}
+		#endif
+		glutPostRedisplay();
 	}
 	g_lastX = x;
 	g_lastY = y;
 }
 
-void scroll_callback(GLFWwindow *win, double xoffset, double yoffset){
-	if (scale + 0.01 * yoffset > 0){
-		scale += 0.01 * yoffset;
+void on_timer(int val){
+	if (g_bAutoRotating){
+		do_motion();
+		glutPostRedisplay();
+		glutTimerFunc(30,on_timer,0);
 	}
 }
 
-void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods){
-    switch (key){
-        case 'a':
-        case 'A':
-            if (action == GLFW_PRESS){
-                g_bShowAxes = !g_bShowAxes;
-            }
-            break;
+void processNormalKeys(unsigned char key,int x,int y){
+    switch(key){
+		case 'a':
+		case 'A':
+			g_bShowAxes = !g_bShowAxes;
+			glutPostRedisplay();
+			break;
 		case 'f':
 		case 'F':
-			if (action == GLFW_PRESS){
-				g_bflip = !g_bflip;
-				update_drawlist();
-			}
+			g_bflip = !g_bflip;
+			update_drawlist();
+			glutPostRedisplay();
 			break;
 		case 'm':
 		case 'M':
-			if (action == GLFW_PRESS){
-				mode_index = (mode_index + 1) %(sizeof(modes)/sizeof(int));
-				update_drawlist();
-			}
+			mode_index = (mode_index + 1) %(sizeof(modes)/sizeof(int));
+			update_drawlist();
+			glutPostRedisplay();
 			break;
 		case 's':
 		case 'S':
-			if (action == GLFW_PRESS){
-				g_bShowModel = !g_bShowModel;
-			}
+			g_bShowModel = !g_bShowModel;
+			glutPostRedisplay();
 			break;
 		case 'r':
 		case 'R':
-			if (action == GLFW_PRESS){
+			for (int i = 0; i < 3; i++){
+				angles[i] = 0;
 			}
+			glutPostRedisplay();
+			break;
+		case 't':
+		case 'T':
+			g_bAutoRotating = !g_bAutoRotating;
+			if (g_bAutoRotating){
+				prev_time = glutGet(GLUT_ELAPSED_TIME);
+				glutTimerFunc(30,on_timer,0);
+			}
+			break;
+		case '-':
+			scale /= 1.05;
+			glutPostRedisplay();
+			break;
+		case '=':
+			scale *= 1.05;
+			glutPostRedisplay();
 			break;
 	}
 }
 
-void reshape(GLFWwindow* window, int w, int h){
-    g_screen_width = w;
-    g_screen_height = h;
-    glfwGetFramebufferSize(window, &w, &h);
-    glViewport(0, 0, w, h);
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
-	const double aspectRatio = (float) w / h, fieldOfView = 60.0;
-	gluPerspective(fieldOfView, aspectRatio, 1.0, 1000.0);
-	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
-	gluLookAt(eye_pos[0],eye_pos[1],eye_pos[2],0.f,0.f,0.f,0.f,1.f,0.f);
-}
-
 void initOpenGL(){
-    glEnable(GL_DEPTH_TEST);
-    glEnable(GL_TEXTURE_2D);
+	glutInitWindowSize(g_screen_width,g_screen_height);
+    glutCreateWindow("gl3d");
+	#if _WIN32
+		GLenum err = glewInit();
+		if (GLEW_OK != err) {
+			std::cout << "Error initializing GLEW: " << glewGetErrorString(err) << std::endl;
+		}
+	#endif
+    glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE | GLUT_DEPTH);
+    glutDisplayFunc(display);
+	glutReshapeFunc(reshape);
+	glutMouseFunc(onMouse);
+	glutMotionFunc(onMotion);
+	glutKeyboardFunc(processNormalKeys);
 	glEnable(GL_TEXTURE_2D);
 	glEnable(GL_LINE_SMOOTH);
 	glLineWidth(1.5);
@@ -525,69 +604,27 @@ void initOpenGL(){
 	glLightfv(GL_LIGHT1, GL_DIFFUSE, LightDiffuse);
 	glLightfv(GL_LIGHT1, GL_POSITION, LightPosition);
 	glEnable(GL_LIGHT1);
-	update_drawlist();
-	glMatrixMode(GL_PROJECTION);
-	g_proj = glm::perspective(glm::radians(60.0f), g_screen_width * 1.0f / g_screen_height, 0.01f, 10.0f);
-	glLoadMatrixf(glm::value_ptr(g_proj));
-	glMatrixMode(GL_MODELVIEW);
-	g_view = glm::lookAt(glm::vec3(eye_pos[0], eye_pos[1], eye_pos[2]), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-	g_model = glm::mat4(1.0);
+	if (g_bAutoRotating){
+		prev_time = glutGet(GLUT_ELAPSED_TIME);
+		glutTimerFunc(30,on_timer,0);
+	}
 }
 
 int main(int argc, char **argv){
 	glutInit(&argc, argv);
-	glfwInit();
-	g_window = glfwCreateWindow(g_screen_width, g_screen_height, "gl3d", NULL, NULL);
-    if (g_window == NULL){
-        std::cout << "Failed to create GLFW window" << std::endl;
-        glfwTerminate();
-        return -1;
-    }
-    glfwMakeContextCurrent(g_window);
-    glfwSetWindowSizeCallback(g_window, reshape);
-    glfwSetKeyCallback(g_window, key_callback);
-    glfwSetMouseButtonCallback(g_window, mouse_button_callback);
-    glfwSetCursorPosCallback(g_window, cursor_position_callback);
-    glfwSetScrollCallback(g_window, scroll_callback);
-	#if _WIN32
-		glewInit();
-	#endif
-    char* model_file = "cube.obj";
+    const char* model_file = "cube.obj";
     if (argc > 1){
         model_file = argv[1];
     }
 	std::cout<<"Loading "<<model_file<<std::endl;
+	initOpenGL();
 	if (0 != loadasset(model_file)) {
 		printf("Failed to load model. Please ensure that the specified file exists.\n");
 		return -1;
 	}
- 	initOpenGL();
-	while (!glfwWindowShouldClose(g_window)){
-        glClearColor(0.384, 0.384, 0.768, 1.0);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		glm::mat4 g_mv = g_view * g_model;
-		glLoadMatrixf(glm::value_ptr(g_mv));
-		
-		if (g_bShowAxes)
-			drawAxis();
-
-		glEnable(GL_TEXTURE_2D);
-		float tmp = scene_max.x-scene_min.x;
-		tmp = std::max(scene_max.y - scene_min.y,tmp);
-		tmp = std::max(scene_max.z - scene_min.z,tmp);
-		tmp = scale / tmp;
-		glScalef(tmp, tmp, tmp);
-		glTranslatef(-scene_center.x, -scene_center.y, -scene_center.z);
-
-		glLineWidth(0.5);
-		if (g_bShowModel && scene_list)
-			glCallList(scene_list);
-		glPopMatrix();
-
-		glfwSwapBuffers(g_window);
-        glfwWaitEvents();
-    }
-    glfwTerminate();	
+	update_drawlist();
+	glutMainLoop();
     aiReleaseImport(g_scene);
+    aiDetachAllLogStreams();
 	return 0;
 }
