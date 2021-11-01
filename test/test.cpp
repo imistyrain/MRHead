@@ -1,4 +1,3 @@
-
 #include "iostream"
 #include "mropencv.h"
 
@@ -13,7 +12,15 @@ void testImage(const std::string imgpath = "opencv.png")
 	cv::imshow("img", img);
 	cv::waitKey();
 }
-
+void testProfile(const int n = 10000){
+	int sum = 0;
+	for (int i = 0; i < n; i++){
+		for (int j = 0; j < n; j++){
+		sum += j;
+	}
+	}
+	std::cout<<sum<<std::endl;
+}
 void testCamera(const int device = 0)
 {
 	cv::VideoCapture capture(device);
@@ -61,7 +68,8 @@ void test_log(){
 
 int main()
 {
-	testImage();
+	testProfile();
+//	testImage();
 //	testCamera();
 //	testVideo();
 	return 0;

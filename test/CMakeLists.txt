@@ -5,6 +5,8 @@ cmake_minimum_required(VERSION 2.8.11)
 AUX_SOURCE_DIRECTORY(. SRC_LIST)
 add_executable(${ProjName} ${SRC_LIST})
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+LIST(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/")
+find_package(PROFILER REQUIRED)
 
 if(WIN32)
 	install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/../tickmeter.hpp" DESTINATION "include")
