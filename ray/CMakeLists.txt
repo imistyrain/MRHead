@@ -1,0 +1,20 @@
+cmake_minimum_required(VERSION 3.0)
+project(ray)
+set(CMAKE_CXX_STANDARD 11)
+
+option(USE_GLAD "use glad" OFF)
+
+if(NOT DEFINED CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE "Release")
+endif()
+set(CMAKE_CXX_FLAGS "-O3")
+
+file(GLOB_RECURSE srcs ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
+message(STATUS ${srcs})
+foreach(source ${srcs})
+	get_filename_component(name ${source} NAME_WE)
+	if(NOT name MATCHES "gl3d" OR assimp_FOUND)
+    add_executable(${name} ${source})
+		target_link_libraries(${name}  ${DEPS})
+	endif()
+endforeach(source)
