@@ -68,8 +68,8 @@ void test_log(){
 
 int main()
 {
-	testProfile();
-//	testImage();
+//	testProfile();
+	testImage();
 //	testCamera();
 //	testVideo();
 	return 0;

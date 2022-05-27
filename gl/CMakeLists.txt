@@ -1,11 +1,17 @@
-cmake_minimum_required(VERSION 2.8.11)
-
+cmake_minimum_required(VERSION 3.0)
 project(MRHead)
 set(CMAKE_CXX_STANDARD 11)
+
+option(USE_GLAD "use glad" OFF)
+
 if(NOT DEFINED CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE "Release")
 endif()
 set(CMAKE_CXX_FLAGS "-O3")
+
+if(${USE_GLAD})
+  add_definitions("-DUSE_GLAD")
+endif()
 
 include_directories(./)
 
@@ -47,7 +53,11 @@ foreach(source ${srcs})
 	get_filename_component(name ${source} NAME_WE)
 	if(NOT name MATCHES "gl3d" OR assimp_FOUND)
 		#message(STATUS ${name})
-		add_executable(${name} ${source})
+    if(${USE_GLAD})
+      add_executable(${name} ${source} "glad.c")
+    else()
+		  add_executable(${name} ${source})
+    endif()
 		target_link_libraries(${name}  ${DEPS})
 	endif()
 endforeach(source)
